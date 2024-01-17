@@ -1,6 +1,7 @@
 package router
 
 import (
+    "fmt"
     "github.com/aws/aws-lambda-go/events"
 )
 
@@ -15,6 +16,9 @@ type Lambda struct {
 type Context struct {
     index int8
     *events.LambdaFunctionURLRequest
+    middlewares []MiddlewareFunc
+    resp        events.LambdaFunctionURLResponse
+    err         error
 }
 
 func Default() *Lambda {
@@ -31,19 +35,29 @@ func (l *Lambda) Use(middleware MiddlewareFunc) {
     l.middlewares = append(l.middlewares, middleware)
 }
 
-func (l *Lambda) Next(c *Context) {
-    if c.index < int8(len(l.middlewares)) {
+func (c *Context) Next() {
+    if c.index < int8(len(c.middlewares)) {
         c.index++
-        l.middlewares[c.index-1](c)
+        c.middlewares[c.index-1](c)
     }
 }
 
 func (l *Lambda) ServeHTTP(req events.LambdaFunctionURLRequest) (events.LambdaFunctionURLResponse, error) {
-    if len(l.middlewares) > 0 {
-        l.Next(&Context{
-            0,
-            &req,
-        })
+    c := &Context{
+        index:                    0,
+        LambdaFunctionURLRequest: &req,
+        middlewares:              l.middlewares,
     }
-    return l.Router.ServeHTTP(req)
+
+    c.middlewares = append(c.middlewares, func(c *Context) {
+        fmt.Println("处理请求")
+        response, err := l.Router.ServeHTTP(*c.LambdaFunctionURLRequest)
+        c.resp = response
+        c.err = err
+        c.Next()
+    })
+
+    c.Next()
+    return c.resp, c.err
+
 }
