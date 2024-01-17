@@ -5,11 +5,16 @@ import (
 )
 
 // MiddlewareFunc 是中间件函数的类型
-type MiddlewareFunc func(*events.LambdaFunctionURLRequest, func())
+type MiddlewareFunc func(*Context)
 
 type Lambda struct {
     *Router
     middlewares []MiddlewareFunc
+}
+
+type Context struct {
+    index int8
+    *events.LambdaFunctionURLRequest
 }
 
 func Default() *Lambda {
@@ -26,22 +31,19 @@ func (l *Lambda) Use(middleware MiddlewareFunc) {
     l.middlewares = append(l.middlewares, middleware)
 }
 
-func (l *Lambda) Next(req *events.LambdaFunctionURLRequest) {
-    var index int
-
-    var next func()
-    next = func() {
-        if index < len(l.middlewares) {
-            index++
-            l.middlewares[index-1](req, next)
-        }
+func (l *Lambda) Next(c *Context) {
+    if c.index < int8(len(l.middlewares)) {
+        c.index++
+        l.middlewares[c.index-1](c)
     }
-    next()
 }
 
 func (l *Lambda) ServeHTTP(req events.LambdaFunctionURLRequest) (events.LambdaFunctionURLResponse, error) {
     if len(l.middlewares) > 0 {
-        l.Next(&req)
+        l.Next(&Context{
+            0,
+            &req,
+        })
     }
     return l.Router.ServeHTTP(req)
 }
