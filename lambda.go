@@ -1,7 +1,6 @@
 package router
 
 import (
-    "fmt"
     "github.com/aws/aws-lambda-go/events"
 )
 
@@ -50,7 +49,6 @@ func (l *Lambda) ServeHTTP(req events.LambdaFunctionURLRequest) (events.LambdaFu
     }
 
     c.middlewares = append(c.middlewares, func(c *Context) {
-        fmt.Println("处理请求")
         response, err := l.Router.ServeHTTP(*c.LambdaFunctionURLRequest)
         c.resp = response
         c.err = err
