@@ -16,8 +16,8 @@ type Context struct {
     index int8
     *events.LambdaFunctionURLRequest
     middlewares []MiddlewareFunc
-    resp        events.LambdaFunctionURLResponse
-    err         error
+    events.LambdaFunctionURLResponse
+    error
 }
 
 func Default() *Lambda {
@@ -50,12 +50,12 @@ func (l *Lambda) ServeHTTP(req events.LambdaFunctionURLRequest) (events.LambdaFu
 
     c.middlewares = append(c.middlewares, func(c *Context) {
         response, err := l.Router.ServeHTTP(*c.LambdaFunctionURLRequest)
-        c.resp = response
-        c.err = err
+        c.LambdaFunctionURLResponse = response
+        c.error = err
         c.Next()
     })
 
     c.Next()
-    return c.resp, c.err
+    return c.LambdaFunctionURLResponse, c.error
 
 }
